@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Cast Line — Java I/O</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --iron:#19181a;
+  --iron-2:#242220;
+  --steel:#9aa1ab;
+  --steel-dim:#5f656e;
+  --molten:#ff6a35;
+  --molten-dark:#c14a1e;
+  --spark:#ffce54;
+  --plate:#eae4d8;
+  --plate-ink:#232019;
+  --font-display:'Bebas Neue', 'Arial Narrow', sans-serif;
+  --font-mono:'IBM Plex Mono','Courier New',monospace;
+  --font-body:'Work Sans', system-ui, sans-serif;
+  box-sizing:border-box;
+}
+*,*::before,*::after{ box-sizing:inherit; }
+html{ scroll-behavior:smooth; }
+body{
+  margin:0; background:var(--iron); color:var(--plate);
+  font-family:var(--font-body); font-size:16.5px; line-height:1.6;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+a{ color:inherit; } img,svg{ max-width:100%; }
+::selection{ background:var(--molten); color:var(--iron); }
+
+.hazard{
+  height:10px; width:100%;
+  background: repeating-linear-gradient(135deg, var(--spark) 0 14px, var(--iron-2) 14px 28px);
+}
+
+/* -------- Top bar -------- */
+.topbar{
+  position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between;
+  padding: 14px clamp(18px,4vw,44px); padding-top:calc(14px + env(safe-area-inset-top,0px));
+  background: rgba(25,24,26,0.94); backdrop-filter:blur(6px); border-bottom:1px solid rgba(154,161,171,0.18);
+}
+.brand{ display:flex; align-items:center; gap:10px; font-family:var(--font-display); font-size:1.4rem; letter-spacing:0.03em; }
+.brand .bolt{ width:22px; height:22px; border-radius:50%; background: conic-gradient(var(--molten), var(--spark), var(--molten)); flex:0 0 auto; }
+.toplinks{ display:flex; gap:clamp(8px,2vw,20px); list-style:none; margin:0; padding:0; font-family:var(--font-mono); font-size:0.76rem; overflow-x:auto; scrollbar-width:none; }
+.toplinks::-webkit-scrollbar{ display:none; }
+.toplinks a{ text-decoration:none; color:var(--steel); white-space:nowrap; padding:6px 2px; border-bottom:2px solid transparent; }
+.toplinks a:hover{ color:var(--plate); border-color:var(--molten); }
+
+/* -------- Hero -------- */
+.hero{
+  position:relative; padding: clamp(60px,10vw,110px) clamp(18px,5vw,44px) clamp(70px,9vw,100px);
+  background: radial-gradient(ellipse at 75% 20%, rgba(255,106,53,0.16), transparent 55%), var(--iron);
+  overflow:hidden; text-align:center;
+}
+.hero .plate-tag{
+  display:inline-flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:0.75rem;
+  color: var(--spark); border:1px solid rgba(255,206,84,0.35); padding:6px 14px; border-radius:2px; margin-bottom:26px;
+}
+h1{
+  font-family:var(--font-display); font-weight:400; letter-spacing:0.01em;
+  font-size: clamp(2.8rem, 9vw, 5.2rem); line-height:0.98; margin:0 0 22px;
+}
+h1 .molten-text{ color:var(--molten); }
+.hero p.lede{ max-width:56ch; margin:0 auto 34px; color:var(--steel); font-size:1.08rem; }
+.hero-ctas{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+.btn{
+  font-family:var(--font-mono); font-size:0.85rem; padding:13px 24px; border-radius:2px;
+  text-decoration:none; cursor:pointer; border:2px solid transparent; display:inline-flex; gap:8px; align-items:center;
+}
+.btn-molten{ background:var(--molten); color:#1a1005; font-weight:600; }
+.btn-molten:hover{ background:var(--molten-dark); }
+.btn-outline{ border-color:var(--steel-dim); color:var(--plate); }
+.btn-outline:hover{ border-color:var(--plate); }
+
+/* -------- Process line diagram -------- */
+.line-diagram{ max-width:960px; margin: 50px auto 0; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:0; }
+.line-node{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:0 8px; }
+.line-node .ring{ width:56px; height:56px; border-radius:50%; border:2px solid var(--molten); display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:0.9rem; color:var(--spark); }
+.line-node span.lbl{ font-family:var(--font-mono); font-size:0.7rem; color:var(--steel); }
+.line-conn{ width:clamp(24px,6vw,64px); height:2px; background: repeating-linear-gradient(90deg, var(--steel-dim) 0 6px, transparent 6px 11px); }
+
+/* -------- Station sections -------- */
+.station{ position:relative; padding: clamp(50px,7vw,90px) clamp(18px,5vw,44px); }
+.station-inner{ max-width:1000px; margin:0 auto; }
+.station-tag{ font-family:var(--font-mono); font-size:0.75rem; color:var(--molten); display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.station-tag .num{ background:var(--molten); color:#1a1005; font-weight:700; padding:2px 8px; border-radius:2px; }
+h2{ font-family:var(--font-display); font-weight:400; letter-spacing:0.01em; font-size:clamp(2rem,4.4vw,3rem); margin:0 0 14px; }
+.station p.lede{ color:var(--steel); max-width:62ch; margin:0 0 8px; }
+
+.station.on-plate{ background:var(--plate); color:var(--plate-ink); }
+.station.on-plate .station-tag{ color:var(--molten-dark); }
+.station.on-plate .station-tag .num{ background:var(--molten-dark); color:var(--plate); }
+.station.on-plate p.lede{ color:#4a4438; }
+
+/* -------- Gauge intake simulator -------- */
+.forge{
+  margin-top:28px; border:1px solid rgba(154,161,171,0.25); border-radius:6px; background:var(--iron-2);
+  padding: clamp(20px,4vw,30px);
+}
+.forge-row{ display:flex; gap:24px; flex-wrap:wrap; margin-bottom:20px; }
+.gauge{ flex:1; min-width:200px; }
+.gauge label{ font-family:var(--font-mono); font-size:0.72rem; color:var(--steel); display:block; margin-bottom:8px; }
+.gauge input{
+  width:100%; background:var(--iron); border:1px solid var(--steel-dim); border-radius:3px; color:var(--plate);
+  font-family:var(--font-mono); font-size:0.95rem; padding:11px 12px;
+}
+.gauge input:focus-visible{ outline:2px solid var(--molten); }
+.forge-btn{
+  background:var(--molten); color:#1a1005; border:none; border-radius:3px; padding:12px 22px;
+  font-family:var(--font-mono); font-weight:700; font-size:0.85rem; cursor:pointer;
+}
+.forge-btn:hover{ background:var(--molten-dark); }
+.forge-btn:disabled{ opacity:0.4; cursor:default; }
+.medallion{
+  margin-top:22px; min-height:96px; border:2px dashed var(--steel-dim); border-radius:8px;
+  display:flex; align-items:center; justify-content:center; text-align:center; padding:18px; font-family:var(--font-mono); color:var(--steel); font-size:0.9rem;
+}
+.medallion.cast{
+  border-style:solid; border-color:var(--spark); background: radial-gradient(circle, rgba(255,206,84,0.14), transparent 70%);
+  color:var(--plate);
+}
+.forge-error{ color:#ff8a72; font-size:0.85rem; margin-top:10px; font-family:var(--font-mono); display:none; }
+
+/* -------- Code card -------- */
+.code-card{ background:#100f0d; border:1px solid rgba(154,161,171,0.2); border-radius:6px; overflow:hidden; margin-top:22px; }
+.code-head{ display:flex; justify-content:space-between; padding:9px 15px; border-bottom:1px solid rgba(154,161,171,0.18); font-family:var(--font-mono); font-size:0.7rem; color:var(--steel); }
+.code-copy{ background:none; border:1px solid var(--steel-dim); color:var(--steel); font-family:var(--font-mono); font-size:0.68rem; padding:3px 10px; border-radius:3px; cursor:pointer; }
+.code-copy:hover{ color:var(--plate); border-color:var(--plate); }
+pre{ margin:0; padding:16px 18px; overflow-x:auto; }
+code{ font-family:var(--font-mono); font-size:0.82rem; color:#dcdcd6; }
+
+/* -------- Vault (read) -------- */
+.vault{ margin-top:26px; display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media (max-width:700px){ .vault{ grid-template-columns:1fr; } }
+.crate{ border:1px solid rgba(35,32,25,0.16); border-radius:6px; padding:18px 20px; background:#dfd8c6; }
+.crate h4{ font-family:var(--font-mono); font-size:0.72rem; color:var(--molten-dark); margin:0 0 12px; }
+.crate .row{ font-family:var(--font-mono); font-size:0.86rem; padding:5px 0; border-bottom:1px dashed rgba(35,32,25,0.14); }
+.crate .row.arriving{ animation: slide-in 0.4s ease forwards; }
+@keyframes slide-in{ from{ opacity:0; transform:translateX(18px); } to{ opacity:1; transform:translateX(0); } }
+.crate button{
+  margin-top:14px; background:var(--plate-ink); color:var(--plate); border:none; border-radius:3px;
+  padding:10px 16px; font-family:var(--font-mono); font-size:0.78rem; cursor:pointer;
+}
+.crate button:disabled{ opacity:0.35; cursor:default; }
+
+/* -------- Stamping press (write) -------- */
+.press{ margin-top:26px; }
+.press-row{ display:flex; gap:10px; flex-wrap:wrap; }
+.press-row input{ flex:1; min-width:200px; padding:11px 13px; border:1px solid rgba(35,32,25,0.25); border-radius:3px; font-family:var(--font-mono); font-size:0.86rem; }
+.press-row button{ background:var(--molten); color:#1a1005; border:none; border-radius:3px; padding:0 20px; font-family:var(--font-mono); font-weight:700; font-size:0.82rem; cursor:pointer; }
+.plate-output{ margin-top:18px; border:1px solid rgba(35,32,25,0.18); border-radius:6px; background:#dfd8c6; min-height:70px; padding:8px 6px; }
+.plate-output .empty{ color:#7a715c; font-style:italic; font-family:var(--font-mono); font-size:0.85rem; padding:12px; }
+.stamp-row{ display:flex; align-items:center; gap:10px; padding:9px 14px; font-family:var(--font-mono); font-size:0.85rem; border-bottom:1px dashed rgba(35,32,25,0.14); }
+.stamp-row:last-child{ border-bottom:none; }
+.stamp-row .rivet{ width:9px; height:9px; border-radius:50%; background:var(--molten-dark); flex:0 0 auto; }
+.melt-btn{ margin-top:10px; background:none; border:none; color:var(--molten-dark); font-family:var(--font-mono); font-size:0.72rem; cursor:pointer; text-decoration:underline; padding:0; }
+
+/* -------- Spec table -------- */
+.table-wrap{ overflow-x:auto; margin-top:24px; border-radius:6px; border:1px solid rgba(154,161,171,0.22); }
+table{ border-collapse:collapse; width:100%; min-width:540px; font-size:0.9rem; }
+th,td{ padding:11px 15px; text-align:left; border-bottom:1px solid rgba(154,161,171,0.14); }
+th{ font-family:var(--font-mono); font-size:0.7rem; color:var(--molten); background:rgba(255,106,53,0.06); }
+tr:last-child td{ border-bottom:none; }
+td code{ font-family:var(--font-mono); background:rgba(255,106,53,0.14); padding:1px 6px; border-radius:3px; color:var(--spark); }
+
+/* -------- Deployed units grid -------- */
+.units{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:24px; }
+@media (max-width:860px){ .units{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:560px){ .units{ grid-template-columns:1fr; } }
+.unit{ border:1px solid rgba(35,32,25,0.14); border-radius:6px; padding:16px; background:#dfd8c6; }
+.unit h4{ margin:0 0 5px; font-family:var(--font-display); font-weight:400; font-size:1.15rem; letter-spacing:0.01em; }
+.unit p{ margin:0; font-size:0.85rem; color:#4a4438; }
+
+/* -------- QC Quiz -------- */
+.qc{ margin-top:26px; border:1px solid rgba(154,161,171,0.25); border-radius:8px; background:var(--iron-2); padding:clamp(22px,4vw,32px); }
+.qc-progress{ font-family:var(--font-mono); font-size:0.75rem; color:var(--steel); margin-bottom:16px; }
+.qc-q{ font-family:var(--font-display); font-weight:400; letter-spacing:0.01em; font-size:1.5rem; margin:0 0 20px; }
+.qc-opts{ display:grid; gap:10px; }
+.qc-opt{
+  text-align:left; padding:13px 16px; border-radius:4px; border:1px solid var(--steel-dim);
+  background:rgba(154,161,171,0.05); color:var(--plate); font-family:var(--font-body); font-size:0.96rem; cursor:pointer;
+  display:flex; align-items:center; gap:10px;
+}
+.qc-opt .rivet{ width:8px; height:8px; border-radius:50%; background:var(--steel-dim); flex:0 0 auto; }
+.qc-opt:hover{ border-color:var(--plate); }
+.qc-opt.correct{ border-color:var(--spark); background:rgba(255,206,84,0.14); }
+.qc-opt.correct .rivet{ background:var(--spark); }
+.qc-opt.wrong{ border-color:var(--molten); background:rgba(255,106,53,0.12); }
+.qc-opt.wrong .rivet{ background:var(--molten); }
+.qc-opt[disabled]{ cursor:default; }
+.qc-fb{ margin-top:16px; font-size:0.92rem; color:var(--steel); min-height:1.4em; }
+.qc-foot{ display:flex; justify-content:space-between; align-items:center; margin-top:22px; flex-wrap:wrap; gap:10px; }
+.qc-score{ font-family:var(--font-mono); font-size:0.85rem; color:var(--spark); }
+
+footer{ padding: 40px clamp(18px,5vw,44px) calc(40px + env(safe-area-inset-bottom,0px)); text-align:center; }
+footer .mark{ font-family:var(--font-display); font-size:1.3rem; letter-spacing:0.02em; margin-bottom:8px; }
+footer p{ color:var(--steel-dim); font-size:0.82rem; font-family:var(--font-mono); margin:4px 0; }
+
+a:focus-visible, button:focus-visible{ outline:2px solid var(--molten); outline-offset:2px; }
+@media (prefers-reduced-motion:reduce){ *{ animation-duration:0.01ms !important; transition-duration:0.01ms !important; } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="bolt"></span>THE CAST LINE</div>
+  <ul class="toplinks">
+    <li><a href="#intake">Intake</a></li>
+    <li><a href="#vault">Vault</a></li>
+    <li><a href="#press">Press</a></li>
+    <li><a href="#spec">Spec Sheet</a></li>
+    <li><a href="#units">Deployed Units</a></li>
+    <li><a href="#qc">QC Check</a></li>
+  </ul>
+</div>
+<div class="hazard"></div>
+
+<header class="hero" id="home">
+  <span class="plate-tag">⚙ PRODUCTION LINE — JAVA.IO</span>
+  <h1>Raw input in.<br>Finished <span class="molten-text">output</span> out.</h1>
+  <p class="lede">Every Java program is a small production line: something comes in from a keyboard or a file, gets processed on the floor, and leaves again as a printed result or a saved record. Walk the line station by station — and run each machine yourself.</p>
+  <div class="hero-ctas">
+    <a class="btn btn-molten" href="#intake">Start the line →</a>
+    <a class="btn btn-outline" href="#spec">Jump to spec sheet</a>
+  </div>
+  <div class="line-diagram">
+    <div class="line-node"><div class="ring">⌨</div><span class="lbl">SOURCE</span></div>
+    <div class="line-conn"></div>
+    <div class="line-node"><div class="ring">⚙</div><span class="lbl">SCANNER</span></div>
+    <div class="line-conn"></div>
+    <div class="line-node"><div class="ring">🔥</div><span class="lbl">PROGRAM</span></div>
+    <div class="line-conn"></div>
+    <div class="line-node"><div class="ring">▣</div><span class="lbl">WRITER</span></div>
+    <div class="line-conn"></div>
+    <div class="line-node"><div class="ring">✔</div><span class="lbl">OUTPUT</span></div>
+  </div>
+</header>
+
+<section class="station" id="intake">
+  <div class="station-inner">
+    <div class="station-tag"><span class="num">01</span>INTAKE STATION</div>
+    <h2>Feeding the line with Scanner</h2>
+    <p class="lede"><code>Scanner</code> is the intake valve — it takes whatever a person types and hands it to your program as a usable value. Run the two gauges below.</p>
+
+    <div class="forge">
+      <div class="forge-row">
+        <div class="gauge">
+          <label>NAME —&nbsp;sc.nextLine()</label>
+          <input id="nameGauge" type="text" placeholder="Type a name">
+        </div>
+        <div class="gauge">
+          <label>AGE —&nbsp;sc.nextInt()</label>
+          <input id="ageGauge" type="text" placeholder="Type a whole number">
+        </div>
+      </div>
+      <button class="forge-btn" id="castBtn">CAST →</button>
+      <div class="forge-error" id="forgeError">nextInt() expected a whole number — no letters.</div>
+      <div class="medallion" id="medallion">medallion bay — empty until you cast</div>
+    </div>
+
+    <div class="code-card">
+      <div class="code-head"><span>IntakeStation.java</span><button class="code-copy" data-copy>Copy</button></div>
+      <pre><code>import java.util.Scanner;
+
+public class IntakeStation {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Name: ");
+        String name = sc.nextLine();
+
+        System.out.print("Age: ");
+        int age = sc.nextInt();
+
+        System.out.println(name + " — cleared for line, age " + age + ".");
+        sc.close();
+    }
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="station on-plate" id="vault">
+  <div class="station-inner">
+    <div class="station-tag"><span class="num">02</span>ARCHIVE VAULT</div>
+    <h2>Pulling records with BufferedReader</h2>
+    <p class="lede">A file is a sealed crate of lines already sitting in storage. <code>readLine()</code> opens it and hands them over one at a time, until there's nothing left.</p>
+
+    <div class="vault">
+      <div class="crate">
+        <h4>CRATE #114 — SEALED</h4>
+        <div class="row">Batch accepted: 08:41</div>
+        <div class="row">Units inspected: 96</div>
+        <div class="row">Rejects flagged: 3</div>
+        <div class="row">Batch closed: 09:12</div>
+      </div>
+      <div class="crate">
+        <h4>PULLED ONTO THE LINE</h4>
+        <div id="vaultOutput"></div>
+        <button id="pullBtn">readLine() →</button>
+      </div>
+    </div>
+
+    <div class="code-card" style="background:#100f0d;">
+      <div class="code-head"><span>PullRecords.java</span><button class="code-copy" data-copy>Copy</button></div>
+      <pre><code>import java.io.*;
+
+public class PullRecords {
+    public static void main(String[] args) {
+        try (BufferedReader in = new BufferedReader(new FileReader("batch114.txt"))) {
+            String line;
+            while ((line = in.readLine()) != null) {
+                System.out.println(line);
+            }
+        } catch (IOException e) {
+            System.out.println("Crate could not be opened: " + e.getMessage());
+        }
+    }
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="station" id="press">
+  <div class="station-inner">
+    <div class="station-tag"><span class="num">03</span>STAMPING PRESS</div>
+    <h2>Punching new records with BufferedWriter</h2>
+    <p class="lede">Whatever the press stamps stays stamped — <code>write()</code> plus <code>newLine()</code> is how a result gets punched permanently into a file.</p>
+
+    <div class="press">
+      <div class="press-row">
+        <input id="pressInput" type="text" placeholder="e.g. Unit QA-812 passed inspection" maxlength="80">
+        <button id="pressBtn">STAMP</button>
+      </div>
+      <div class="plate-output" id="plateOutput"><div class="empty">plate is blank — nothing stamped yet</div></div>
+      <button class="melt-btn" id="meltBtn">melt down the plate</button>
+    </div>
+
+    <div class="code-card">
+      <div class="code-head"><span>StampRecord.java</span><button class="code-copy" data-copy>Copy</button></div>
+      <pre><code>import java.io.*;
+
+public class StampRecord {
+    public static void main(String[] args) {
+        try (BufferedWriter out =
+                 new BufferedWriter(new FileWriter("plate.txt", true))) {
+            out.write("Unit QA-812 passed inspection");
+            out.newLine();
+        } catch (IOException e) {
+            System.out.println("Press jammed: " + e.getMessage());
+        }
+    }
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="station on-plate" id="spec">
+  <div class="station-inner">
+    <div class="station-tag"><span class="num">04</span>SPEC SHEET</div>
+    <h2>The parts list</h2>
+    <p class="lede">Once you've run the stations above, this is the reference to keep on the wall.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Component</th><th>Direction</th><th>Core method</th><th>Rated for</th></tr></thead>
+        <tbody>
+          <tr><td>Scanner</td><td>In</td><td><code>nextLine()</code></td><td>Keyboard input</td></tr>
+          <tr><td>FileReader</td><td>In</td><td><code>read()</code></td><td>Small text files</td></tr>
+          <tr><td>BufferedReader</td><td>In</td><td><code>readLine()</code></td><td>Larger text files</td></tr>
+          <tr><td>FileWriter</td><td>Out</td><td><code>write()</code></td><td>Small text files</td></tr>
+          <tr><td>BufferedWriter</td><td>Out</td><td><code>newLine()</code></td><td>Larger text files</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="station" id="units">
+  <div class="station-inner">
+    <div class="station-tag"><span class="num">05</span>DEPLOYED UNITS</div>
+    <h2>Where this line ships to</h2>
+    <div class="units">
+      <div class="unit"><h4>Student records</h4><p>Grades and attendance that need to outlive the program run.</p></div>
+      <div class="unit"><h4>Banking systems</h4><p>Every transaction stamped the moment it happens.</p></div>
+      <div class="unit"><h4>Application logs</h4><p>A running record for whoever debugs the system later.</p></div>
+      <div class="unit"><h4>Generated reports</h4><p>Output built by code, read by someone who never sees it.</p></div>
+      <div class="unit"><h4>Config files</h4><p>Settings read on startup instead of hard-coded.</p></div>
+      <div class="unit"><h4>Backups</h4><p>A second copy, cast on purpose.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="station on-plate" id="qc">
+  <div class="station-inner">
+    <div class="station-tag"><span class="num">06</span>QUALITY CONTROL</div>
+    <h2>Final inspection</h2>
+    <p class="lede">Five checks before this unit ships.</p>
+    <div class="qc" style="background:#dfd8c6; border-color: rgba(35,32,25,0.16);">
+      <div class="qc-progress" id="qcProgress" style="color:#4a4438;">CHECK 1 OF 5</div>
+      <div class="qc-q" id="qcQ" style="color:var(--plate-ink);"></div>
+      <div class="qc-opts" id="qcOpts"></div>
+      <div class="qc-fb" id="qcFb" style="color:#4a4438;"></div>
+      <div class="qc-foot">
+        <span class="qc-score" id="qcScore" style="color:var(--molten-dark);">Passed: 0 / 5</span>
+        <a class="btn btn-molten" id="qcNext" style="display:none;" href="#qc">Next check →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="mark">THE CAST LINE</div>
+  <p>JAVA CONSOLE &amp; FILE I/O — SHOP FLOOR EDITION</p>
+  <p><a href="#home">↑ back to the top of the line</a></p>
+</footer>
+
+<script>
+(function(){
+  document.querySelectorAll('[data-copy]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var code = btn.closest('.code-card').querySelector('code').innerText;
+      navigator.clipboard && navigator.clipboard.writeText(code).then(function(){
+        var old = btn.textContent; btn.textContent = 'Copied';
+        setTimeout(function(){ btn.textContent = old; }, 1300);
+      });
+    });
+  });
+  function escapeHtml(s){ return s.replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  /* ---- Intake / cast ---- */
+  var nameGauge = document.getElementById('nameGauge');
+  var ageGauge = document.getElementById('ageGauge');
+  var castBtn = document.getElementById('castBtn');
+  var medallion = document.getElementById('medallion');
+  var forgeError = document.getElementById('forgeError');
+  castBtn.addEventListener('click', function(){
+    var name = nameGauge.value.trim();
+    var age = ageGauge.value.trim();
+    forgeError.style.display = 'none';
+    if (!name || !age){
+      forgeError.textContent = 'Fill both gauges before casting.';
+      forgeError.style.display = 'block';
+      return;
+    }
+    if (!/^\d+$/.test(age)){
+      forgeError.textContent = 'nextInt() expected a whole number — no letters.';
+      forgeError.style.display = 'block';
+      return;
+    }
+    medallion.classList.add('cast');
+    medallion.innerHTML = '“' + escapeHtml(name) + ' — cleared for line, age ' + escapeHtml(age) + '.”';
+  });
+
+  /* ---- Vault pull ---- */
+  var vaultLines = ['Batch accepted: 08:41','Units inspected: 96','Rejects flagged: 3','Batch closed: 09:12'];
+  var vaultOutput = document.getElementById('vaultOutput');
+  var pullBtn = document.getElementById('pullBtn');
+  var vi = 0;
+  pullBtn.addEventListener('click', function(){
+    if (vi >= vaultLines.length){
+      pullBtn.disabled = true; pullBtn.textContent = 'readLine() → null (crate empty)';
+      return;
+    }
+    var d = document.createElement('div');
+    d.className = 'row arriving';
+    d.textContent = vaultLines[vi];
+    vaultOutput.appendChild(d);
+    vi++;
+    if (vi >= vaultLines.length){ pullBtn.textContent = 'readLine() → (one more call returns null)'; }
+  });
+
+  /* ---- Stamping press ---- */
+  var pressInput = document.getElementById('pressInput');
+  var pressBtn = document.getElementById('pressBtn');
+  var plateOutput = document.getElementById('plateOutput');
+  var meltBtn = document.getElementById('meltBtn');
+  var stamped = [];
+  function renderPlate(){
+    if (!stamped.length){ plateOutput.innerHTML = '<div class="empty">plate is blank — nothing stamped yet</div>'; return; }
+    plateOutput.innerHTML = stamped.map(function(t){
+      return '<div class="stamp-row"><span class="rivet"></span>' + escapeHtml(t) + '</div>';
+    }).join('');
+  }
+  function doStamp(){
+    var v = pressInput.value.trim();
+    if (!v) return;
+    stamped.push(v);
+    renderPlate();
+    pressInput.value = '';
+    pressInput.focus();
+  }
+  pressBtn.addEventListener('click', doStamp);
+  pressInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') doStamp(); });
+  meltBtn.addEventListener('click', function(){ stamped = []; renderPlate(); });
+  renderPlate();
+
+  /* ---- QC quiz ---- */
+  var qs = [
+    { q:"Which component takes typed input from the keyboard?", opts:["FileWriter","Scanner","BufferedWriter","FileReader"], a:1,
+      why:"Scanner wraps System.in and reads it with methods like nextLine() and nextInt()." },
+    { q:"Which method pulls one full line out of a file?", opts:["read()","next()","readLine()","nextLine()"], a:2,
+      why:"readLine() belongs to BufferedReader and returns null once the file is exhausted." },
+    { q:"What exception should file-handling code be built to catch?", opts:["ArithmeticException","IOException","NullPointerException","ArrayIndexOutOfBoundsException"], a:1,
+      why:"File access can fail for reasons outside your code, so Java requires handling IOException." },
+    { q:"Which pair is responsible for writing text to a file?", opts:["Scanner + System.out","FileWriter + BufferedWriter","FileReader + BufferedReader","System.in + Scanner"], a:1,
+      why:"FileWriter sends characters to disk; BufferedWriter wraps it for efficient, line-based writes." },
+    { q:"Why doesn't data in a variable survive after the program ends?", opts:["Java auto-deletes variables","Variables live in memory, which clears on exit","Only Scanner-read values are temporary","It does survive, files aren't needed"], a:1,
+      why:"Memory is temporary; writing to a file is what makes a result available afterward." }
+  ];
+  var qi=0, score=0, answered=false;
+  var qcQ=document.getElementById('qcQ'), qcOpts=document.getElementById('qcOpts'),
+      qcFb=document.getElementById('qcFb'), qcProgress=document.getElementById('qcProgress'),
+      qcScore=document.getElementById('qcScore'), qcNext=document.getElementById('qcNext');
+  function renderQ(){
+    answered=false;
+    var item=qs[qi];
+    qcProgress.textContent = 'CHECK ' + (qi+1) + ' OF ' + qs.length;
+    qcQ.textContent = item.q;
+    qcFb.textContent = '';
+    qcNext.style.display='none';
+    qcOpts.innerHTML='';
+    item.opts.forEach(function(opt,i){
+      var b=document.createElement('button');
+      b.className='qc-opt';
+      b.innerHTML = '<span class="rivet"></span>' + escapeHtml(opt);
+      b.addEventListener('click', function(){ choose(i,b); });
+      qcOpts.appendChild(b);
+    });
+  }
+  function choose(i){
+    if (answered) return;
+    answered=true;
+    var item=qs[qi];
+    var ok = i===item.a;
+    if (ok) score++;
+    Array.from(qcOpts.children).forEach(function(b,j){
+      b.disabled=true;
+      if (j===item.a) b.classList.add('correct');
+      else if (j===i) b.classList.add('wrong');
+    });
+    qcFb.textContent = (ok?'Pass — ':'Flagged — ') + item.why;
+    qcScore.textContent = 'Passed: ' + score + ' / ' + qs.length;
+    qcNext.style.display='inline-flex';
+    qcNext.textContent = qi < qs.length-1 ? 'Next check →' : 'See final result →';
+  }
+  qcNext.addEventListener('click', function(e){
+    e.preventDefault();
+    if (qi < qs.length-1){ qi++; renderQ(); }
+    else {
+      qcQ.textContent = 'Line inspection complete.';
+      qcOpts.innerHTML='';
+      qcFb.textContent = 'Final score: ' + score + ' / ' + qs.length + '. Reload to run inspection again.';
+      qcNext.style.display='none';
+      qcProgress.textContent='INSPECTION CLOSED';
+    }
+  });
+  renderQ();
+})();
+</script>
+</body>
+</html>
